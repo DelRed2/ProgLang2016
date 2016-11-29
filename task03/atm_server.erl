@@ -12,8 +12,14 @@ terminate(_, _) -> 'ok'.
 
 handle_call({widthdraw, Amount}, _, State) ->
     try atm:widthdraw(Amount, State) of
-        {Response, BanknotesToGive, RestBanknotes} -> 
-              {'reply', {Response, BanknotesToGive}, RestBanknotes}
+		{Response, BanknotesToGive, RestBanknotes} -> 
+			if
+				Response == 'ok' -> 
+					gen_server:cast({global, transactions_server}, {widthdraw, Amount});
+			    true -> 
+					'ok'
+			end,
+            {'reply', {Response, BanknotesToGive}, RestBanknotes}
     catch
           _:_ -> {'stop', 'normal', State}
     end;
