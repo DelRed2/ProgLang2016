@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XO Game</title>
+</head>
+<body>
+	<div id="nextTurn">Waiting to start</div>
+    <canvas id="canvas"></canvas>
+    <script>
+    	var GAME_PORT = 2016;
+    	var GAME_SIZE = 20;
+
+    	var CELL_SIZE = 36;
+    	var MARGIN = 10;
+    	var TEXT_SIZE = 30;
+
+        var isMyTurn = false;
+
+        var nextTurnText = document.getElementById("nextTurn");
+        var gameField = document.getElementById("canvas");
+        gameField.width = GAME_SIZE * CELL_SIZE + MARGIN * 2;
+        gameField.height = gameField.width;
+        gameField.addEventListener('click', makeTurn);
+
+        var canvas = gameField.getContext("2d");
+        drawGameField();
+
+        ws = new WebSocket("ws://localhost:" + GAME_PORT);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = function(){};
+        ws.onclose = function(){};
+        ws.onmessage = function(e)
+        {
+            var dv = new DataView(e.data);
+            var p = dv.getInt32(0);
+
+            if (p == -1)
+            {
+            	if (dv.byteLength > 4)
+            	{
+					nextTurnText.textContent = idToSign(dv.getInt32(4)) + " turn";
+            	}
+            	else
+            	{
+            		nextTurnText.textContent = "Your turn";
+                	isMyTurn = true;
+            	}
+            }
+            else
+            {
+                if (dv.byteLength > 4)
+                {
+                    drawTurn(p, dv.getInt32(4), dv.getInt32(8));
+                }
+                else
+                {
+                    alert(idToSign(p) + " win");
+                    cleanGameField();
+                }
+            }
+        };
+
+        function idToSign(id)
+        {
+            switch (id)
+            {
+            case 0:
+                return "X";
+            case 1:
+                return "O";
+            default:
+                return "" + (id - 1);
+            }
+        }
+
+        function drawGameField()
+        {
+            canvas.strokeStyle = "black";
+
+            canvas.beginPath();
+            for (var i = MARGIN; i < gameField.width; i += CELL_SIZE) 
+            {
+                canvas.moveTo(MARGIN, i);
+                canvas.lineTo(gameField.width - MARGIN, i);
+
+                canvas.moveTo(i, MARGIN);
+                canvas.lineTo(i, gameField.height - MARGIN);
+            }
+            canvas.closePath();
+
+            canvas.stroke();
+        }
+
+        function cleanGameField()
+        {
+            canvas.clearRect(0, 0, gameField.width, gameField.height);
+            drawGameField();
+        }
+
+        function drawTurn(id, col, row)
+        {
+            canvas.fillStyle = "black";
+            canvas.font = TEXT_SIZE + "px Arial";
+            canvas.fillText(idToSign(id), CELL_SIZE * col + MARGIN + (CELL_SIZE - TEXT_SIZE), CELL_SIZE * (row + 1));
+        }
+
+        function makeTurn(e)
+        {
+            if (isMyTurn)
+            {
+                col = Math.floor((e.offsetX - MARGIN) / CELL_SIZE);
+                row = Math.floor((e.offsetY - MARGIN) / CELL_SIZE);
+                ws.send(col + "," + row);
+                isMyTurn = false;
+            }
+        }
+
+    </script>
+</body>
+</html>
